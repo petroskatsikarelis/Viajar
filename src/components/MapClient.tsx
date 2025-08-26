@@ -1,13 +1,22 @@
-import MapClient from '@/components/MapClient';
+'use client';
+import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import 'leaflet/dist/leaflet.css';
+import { patchLeafletIcon } from '@/lib/leaflet-icon';
+patchLeafletIcon(); 
 
-export default function Home() {
-  return (
-    <main className="p-4">
-      <h1 className="text-3xl font-bold">Viajar</h1>
-      <p className="mt-2">Your personal guide to Patras.</p>
-      <div className="mt-6 rounded-xl overflow-hidden shadow-lg border">
-        <MapClient />
-      </div>
-    </main>
-  );
+type Post = { id:string; title:string; description:string|null; category_slug:string; lat:number; lng:number; created_at:string; };
+const MapView = dynamic(()=>import('./MapView'),{ ssr:false });
+
+export default function MapClient(){
+  const [posts,setPosts]=useState<Post[]>([]);
+  async function fetchPosts(){
+    const { data, error } = await supabase.from('posts')
+      .select('id,title,description,category_slug,lat,lng,created_at')
+      .order('created_at',{ ascending:false });
+    if(error) console.error(error); else setPosts(data as Post[]);
+  }
+  useEffect(()=>{ fetchPosts(); const id=setInterval(fetchPosts,5000); return ()=>clearInterval(id); },[]);
+  return <MapView posts={posts} />;
 }

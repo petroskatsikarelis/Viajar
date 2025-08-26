@@ -1,10 +1,15 @@
-//Maps.tsx
+//Map.tsx
 'use client';
 
 import 'leaflet/dist/leaflet.css';
+import { patchLeafletIcon } from '@/lib/leaflet-icon';
+patchLeafletIcon(); 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import * as L from 'leaflet';                      // TS-safe import
 import type { LatLngExpression } from 'leaflet';   // bring the type in
+
+
+
 
 // Use explicit Icon class from Leaflet
 const defaultIcon = new L.Icon({
