@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const geistSans = localFont({
   src: './fonts/Geist[wght].woff2',
   variable: '--font-geist-sans',
-  weight: '100 900',    // range supported by the variable font
+  weight: '100 900', // range supported by the variable font
   display: 'swap',
 });
 
@@ -38,5 +38,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-

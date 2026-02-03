@@ -1,41 +1,64 @@
-//Map.tsx
 'use client';
 
-import 'leaflet/dist/leaflet.css';
-import { patchLeafletIcon } from '@/lib/leaflet-icon';
-patchLeafletIcon(); 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import * as L from 'leaflet';                      // TS-safe import
-import type { LatLngExpression } from 'leaflet';   // bring the type in
-
-
-
-
-// Use explicit Icon class from Leaflet
-const defaultIcon = new L.Icon({
-  iconUrl: '/leaflet/marker-icon.png',
-  shadowUrl: '/leaflet/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
+import { useEffect, useRef } from 'react';
 
 export default function Map() {
-  const patrasCenter: LatLngExpression = [38.246242, 21.735084];
+  const mapDivRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!mapDivRef.current) return;
+
+    const center = { lat: 38.246242, lng: 21.735084 }; // Patras
+
+    const init = () => {
+      if (!mapDivRef.current) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const g = (window as any).google;
+      if (!g || !g.maps) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      const map = new g.maps.Map(mapDivRef.current, {
+        center,
+        zoom: 13,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      new g.maps.Marker({
+        position: center,
+        map,
+        title: 'Patras Center',
+      });
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const g = (window as any).google;
+    if (g && g.maps) {
+      init();
+      return;
+    }
+
+    let script = document.querySelector<HTMLScriptElement>(
+      'script[data-google-maps="true"]'
+    );
+    if (!script) {
+      script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+      script.async = true;
+      script.defer = true;
+      script.dataset.googleMaps = 'true';
+      document.head.appendChild(script);
+    }
+    script.addEventListener('load', init);
+
+    return () => {
+      script?.removeEventListener('load', init);
+    };
+  }, []);
 
   return (
-    <MapContainer
-      center={patrasCenter}
-      zoom={13}
+    <div
+      ref={mapDivRef}
       style={{ height: '60vh', width: '100%' }}
-    >
-      <TileLayer
-        attribution="&copy; OpenStreetMap contributors"
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-
-      <Marker position={patrasCenter} icon={defaultIcon}>
-        <Popup>Patras Center</Popup>
-      </Marker>
-    </MapContainer>
+    />
   );
 }

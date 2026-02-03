@@ -1,0 +1,146 @@
+-- USERS come from auth.users; we keep a public profile
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  username text unique,
+  is_admin boolean default false,
+  avatar_url text,
+  created_at timestamptz default now()
+);
+
+-- Controlled vocabulary of categories
+create table if not exists categories (
+  id serial primary key,
+  slug text unique not null,             -- 'cafe','restaurant','view','museum','bar','club'
+  label text not null
+);
+
+insert into categories (slug, label) values
+  ('cafe','Cafes'),
+  ('restaurant','Restaurants'),
+  ('view','Views'),
+  ('museum','Museums'),
+  ('bar','Bars'),
+  ('club','Clubs')
+on conflict (slug) do nothing;
+
+-- USER POSTS (UGC) pinned on the map
+create table if not exists posts (
+  id bigserial primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  description text,
+  category_slug text not null references categories(slug),
+  lat double precision not null,
+  lng double precision not null,
+  likes_count integer not null default 0,
+  comments_count integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- LIKES: prevent duplicates
+create table if not exists post_likes (
+  post_id bigint not null references posts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+-- COMMENTS
+create table if not exists post_comments (
+  id bigserial primary key,
+  post_id bigint not null references posts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+-- ADMIN POIs (objective places: museums/sights/etc.)
+create table if not exists pois (
+  id bigserial primary key,
+  title text not null,
+  description text,
+  category_slug text not null references categories(slug),
+  lat double precision not null,
+  lng double precision not null,
+  is_featured boolean default false,     -- “important ones”
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- simple updated_at trigger
+create or replace function set_updated_at()
+returns trigger as $$
+begin new.updated_at = now(); return new; end;
+$$ language plpgsql;
+
+drop trigger if exists trg_posts_updated on posts;
+create trigger trg_posts_updated before update on posts
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_pois_updated on pois;
+create trigger trg_pois_updated before update on pois
+for each row execute function set_updated_at();
+
+-- indexes for performance
+create index if not exists idx_posts_category on posts(category_slug);
+create index if not exists idx_posts_latlng on posts(lat, lng);
+create index if not exists idx_pois_category on pois(category_slug);
+create index if not exists idx_pois_latlng on pois(lat, lng);
+
+
+
+-----------------
+-- PROFILES
+alter table profiles enable row level security;
+create policy "profiles_read_all" on profiles for select using (true);
+create policy "profiles_insert_self" on profiles for insert with check (auth.uid() = id);
+create policy "profiles_update_self" on profiles for update using (auth.uid() = id);
+
+-- POSTS
+alter table posts enable row level security;
+create policy "posts_read_all" on posts for select using (true);
+create policy "posts_insert_own" on posts for insert with check (auth.uid() = user_id);
+create policy "posts_update_own" on posts for update using (auth.uid() = user_id);
+create policy "posts_delete_own" on posts for delete using (auth.uid() = user_id);
+
+-- POIS (admins only for write)
+alter table pois enable row level security;
+create policy "pois_read_all" on pois for select using (true);
+-- Allow only admins to insert/update/delete
+create policy "pois_write_admins" on pois for all
+  using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin = true))
+  with check (exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin = true));
+
+-- LIKES
+alter table post_likes enable row level security;
+create policy "likes_read_all" on post_likes for select using (true);
+create policy "likes_insert_own" on post_likes for insert with check (auth.uid() = user_id);
+create policy "likes_delete_own" on post_likes for delete using (auth.uid() = user_id);
+
+-- COMMENTS
+alter table post_comments enable row level security;
+create policy "comments_read_all" on post_comments for select using (true);
+create policy "comments_insert_own" on post_comments for insert with check (auth.uid() = user_id);
+create policy "comments_delete_own" on post_comments for delete using (auth.uid() = user_id);
+
+--------
+-- Allow users to insert only their own posts
+create policy "Users can insert their own posts"
+on posts for insert
+with check (auth.uid() = user_id);
+
+-- Allow everyone to read posts
+create policy "Anyone can read posts"
+on posts for select
+using (true);
+
+-------
+-- Anyone can read posts
+create policy "read posts" on posts for select using (true);
+
+-- Only the logged-in user can insert their own rows
+create policy "insert own posts" on posts
+for insert with check (auth.uid() = user_id);
+
