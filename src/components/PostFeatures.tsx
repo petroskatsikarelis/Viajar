@@ -70,6 +70,7 @@ export default function PostFeatures({ editingPost }: { editingPost?: EditingPos
           address: '',
           coords: { lat: editingPost.lat, lng: editingPost.lng },
         });
+        setMsg(''); // Clear any messages when editing
       }
     })();
   }, [editingPost]);
@@ -313,6 +314,7 @@ async function handleCreatePost(e: React.FormEvent) {
   };
 
   const handleNextStep = () => {
+    setMsg(''); // Clear any previous messages before validating
     if (currentStep === 'details') {
       if (validateDetailsStep()) {
         // When editing, skip location step and go directly to review
@@ -330,9 +332,9 @@ async function handleCreatePost(e: React.FormEvent) {
   };
 
   const handlePrevStep = () => {
+    setMsg(''); // Clear message when navigating back
     if (currentStep === 'location') {
       setCurrentStep('details');
-      setMsg('');
     } else if (currentStep === 'review') {
       // When editing, go back to details (skip location)
       if (editingPost) {
@@ -340,7 +342,6 @@ async function handleCreatePost(e: React.FormEvent) {
       } else {
         setCurrentStep('location');
       }
-      setMsg('');
     }
   };
 
