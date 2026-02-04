@@ -33,7 +33,7 @@ export default function PostFeatures({ editingPost }: { editingPost?: EditingPos
   const [userId, setUserId] = useState<string | null>(null);
 
   // Step indicator for form sections
-  const [currentStep, setCurrentStep] = useState<'details' | 'location' | 'review'>(editingPost ? 'details' : 'details');
+  const [currentStep, setCurrentStep] = useState<'details' | 'location' | 'review'>(editingPost ? 'details' : 'location');
 
   //post form state
   const [form, setForm] = useState<PostForm>({
@@ -300,13 +300,17 @@ async function handleCreatePost(e: React.FormEvent) {
       setMsg('Please select a category');
       return false;
     }
+    if (!form.description.trim()) {
+      setMsg('Please enter a description');
+      return false;
+    }
     setMsg('');
     return true;
   };
 
   const validateLocationStep = () => {
     if (!form.coords) {
-      setMsg('Please pick a location on the map or enter coordinates');
+      setMsg('Please pick a location on the map, enter coordinates, or search for a place');
       return false;
     }
     setMsg('');
@@ -315,17 +319,12 @@ async function handleCreatePost(e: React.FormEvent) {
 
   const handleNextStep = () => {
     setMsg(''); // Clear any previous messages before validating
-    if (currentStep === 'details') {
-      if (validateDetailsStep()) {
-        // When editing, skip location step and go directly to review
-        if (editingPost) {
-          setCurrentStep('review');
-        } else {
-          setCurrentStep('location');
-        }
-      }
-    } else if (currentStep === 'location') {
+    if (currentStep === 'location') {
       if (validateLocationStep()) {
+        setCurrentStep('details');
+      }
+    } else if (currentStep === 'details') {
+      if (validateDetailsStep()) {
         setCurrentStep('review');
       }
     }
@@ -333,14 +332,14 @@ async function handleCreatePost(e: React.FormEvent) {
 
   const handlePrevStep = () => {
     setMsg(''); // Clear message when navigating back
-    if (currentStep === 'location') {
-      setCurrentStep('details');
+    if (currentStep === 'details') {
+      setCurrentStep('location');
     } else if (currentStep === 'review') {
       // When editing, go back to details (skip location)
       if (editingPost) {
         setCurrentStep('details');
       } else {
-        setCurrentStep('location');
+        setCurrentStep('details');
       }
     }
   };
@@ -355,28 +354,28 @@ async function handleCreatePost(e: React.FormEvent) {
         {/* Step 1: Location */}
         <div className="flex flex-col items-center flex-1">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white mb-2 transition-all ${
-            currentStep === 'details'
+            currentStep === 'location'
               ? 'bg-teal-500'
               : 'bg-gray-300'
           }`}>
             1
           </div>
-          <p className={`text-sm font-semibold ${currentStep === 'details' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-600 dark:text-gray-400'}`}>Location</p>
+          <p className={`text-sm font-semibold ${currentStep === 'location' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-600 dark:text-gray-400'}`}>Location</p>
         </div>
 
         {/* Connector line */}
-        <div className={`flex-1 h-1 mx-2 mb-6 transition-all ${currentStep === 'location' || currentStep === 'review' ? 'bg-teal-500' : 'bg-gray-300'}`} />
+        <div className={`flex-1 h-1 mx-2 mb-6 transition-all ${currentStep === 'details' || currentStep === 'review' ? 'bg-teal-500' : 'bg-gray-300'}`} />
 
         {/* Step 2: Details */}
         <div className="flex flex-col items-center flex-1">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white mb-2 transition-all ${
-            currentStep === 'location'
+            currentStep === 'details'
               ? 'bg-teal-500'
               : 'bg-gray-300'
           }`}>
             2
           </div>
-          <p className={`text-sm font-semibold ${currentStep === 'location' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-600 dark:text-gray-400'}`}>Details</p>
+          <p className={`text-sm font-semibold ${currentStep === 'details' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-600 dark:text-gray-400'}`}>Details</p>
         </div>
 
         {/* Connector line */}
@@ -404,7 +403,7 @@ async function handleCreatePost(e: React.FormEvent) {
     
     {/* 📋 STEP 2: Organize Form into Sections */}
     {/* STEP 1: Location Section - Show First */}
-    {currentStep === 'details' && !editingPost && (
+    {currentStep === 'location' && !editingPost && (
       <div className="space-y-5">
         <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-lg border-l-4 border-teal-500 mb-6">
           <h3 className="text-lg font-bold text-teal-900 dark:text-teal-300">📍 Step 1: Pick the location</h3>
@@ -486,12 +485,14 @@ async function handleCreatePost(e: React.FormEvent) {
     )}
 
     {/* STEP 2: Details Section - Title, Category, Description (Show Second) */}
-    {currentStep === 'location' && !editingPost && (
+    {currentStep === 'details' && (
       <div className="space-y-5">
-        <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-lg border-l-4 border-teal-500 mb-6">
-          <h3 className="text-lg font-bold text-teal-900 dark:text-teal-300">📝 Step 2: Tell us about the place</h3>
-          <p className="text-sm text-teal-700 dark:text-teal-400 mt-1">Give your recommendation a title and choose a category</p>
-        </div>
+        {!editingPost && (
+          <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-lg border-l-4 border-teal-500 mb-6">
+            <h3 className="text-lg font-bold text-teal-900 dark:text-teal-300">📝 Step 2: Tell us about the place</h3>
+            <p className="text-sm text-teal-700 dark:text-teal-400 mt-1">Give your recommendation a title and choose a category</p>
+          </div>
+        )}
         <div className="grid gap-5">
           {/* Title Input with Character Counter */}
           <label className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -540,7 +541,7 @@ async function handleCreatePost(e: React.FormEvent) {
           {/* Description Textarea with Character Counter */}
           <label className="text-sm font-semibold text-gray-900 dark:text-white">   
             <div className="flex items-center justify-between mb-2">
-              <span>Description</span>
+              <span><span className="text-coral">*</span> Description</span>
               <span className={`text-xs font-medium ${form.description.length >= 450 ? 'text-orange-500' : form.description.length >= 500 ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
                 {form.description.length}/500
               </span>
@@ -615,7 +616,7 @@ async function handleCreatePost(e: React.FormEvent) {
 
     {/* Submission Button and Message */}
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-4 border-t-2 border-teal-500">
-      {currentStep !== 'details' && (
+      {currentStep !== 'location' && !editingPost && (
         <button
           type="button"
           onClick={handlePrevStep}
@@ -644,7 +645,7 @@ async function handleCreatePost(e: React.FormEvent) {
           {loading ? '✓ Saving…' : editingPost ? '✏️ Update Post' : '📍 Create Post'}
         </button>
       )}
-      {msg && <span className="text-sm font-semibold text-red-600 dark:text-red-400">{msg}</span>}
+      {msg && <span className={`text-sm font-semibold ${msg.includes('successfully') || msg.includes('found') || msg.includes('Found') ? 'text-teal-600 dark:text-teal-400' : 'text-red-600 dark:text-red-400'}`}>{msg}</span>}
     </div>
   </form>
   );
