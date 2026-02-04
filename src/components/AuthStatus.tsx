@@ -30,12 +30,28 @@ export default function AuthStatus() {
       setUser(data?.session?.user ?? null);
       setPhase(data?.session ? 'logged in' : 'logged out');
 
+      if (data?.session?.user?.email) {
+        const username = data.session.user.email.split('@')[0];
+        await supabase.from('profiles').upsert(
+          { id: data.session.user.id, username },
+          { onConflict: 'id' }
+        );
+      }
+
       // 2. Set up listener for state changes
       const sub = supabase.auth.onAuthStateChange((event, session) => {
         console.log('[AuthStatus] onAuthStateChange:', { event, hasSession: !!session });
         setUser(session?.user ?? null);
         setPhase(session ? 'logged in' : 'logged out');
         if (session) setShowLogin(false);
+
+        if (session?.user?.email) {
+          const username = session.user.email.split('@')[0];
+          supabase.from('profiles').upsert(
+            { id: session.user.id, username },
+            { onConflict: 'id' }
+          );
+        }
       });
       
       // Setup cleanup function

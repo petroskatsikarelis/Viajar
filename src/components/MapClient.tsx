@@ -6,12 +6,14 @@ import { supabase } from '@/lib/supabaseClient';
 
 type Post = {
   id: string;
+  user_id: string;
   title: string;
   description: string | null;
   category_slug: string;
   lat: number;
   lng: number;
   created_at: string;
+  author_name?: string | null;
 };
 
 const MapView = dynamic(() => import('./MapView'), { ssr: false });
@@ -32,13 +34,44 @@ export default function MapClient({ selectedCategory }: { selectedCategory?: str
   async function fetchPosts() {
     const { data, error } = await supabase
       .from('posts')
-      .select('id,title,description,category_slug,lat,lng,created_at')
+      .select('id,user_id,title,description,category_slug,lat,lng,created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error(error);
     } else {
-      setPosts(data as Post[]);
+      const rows = (data as Post[]) || [];
+      const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter(Boolean)));
+
+      if (userIds.length === 0) {
+        setPosts(rows);
+        return;
+      }
+
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id,username')
+        .in('id', userIds);
+
+      if (profileError) {
+        console.error(profileError);
+        setPosts(rows);
+        return;
+      }
+
+      const nameByUserId = new Map(
+        (profiles || []).map((p) => [
+          p.id as string,
+          (p as { username?: string | null }).username ?? null
+        ])
+      );
+
+      const withNames = rows.map((row) => ({
+        ...row,
+        author_name: nameByUserId.get(row.user_id) ?? null,
+      }));
+
+      setPosts(withNames);
     }
   }
 

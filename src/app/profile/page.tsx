@@ -31,9 +31,9 @@ export default function ProfilePage() {
   
   // Edit profile state
   const [editingProfile, setEditingProfile] = useState(false);
-  const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [username, setUsername] = useState('');
   
   // Account settings state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -60,6 +60,18 @@ export default function ProfilePage() {
           .select('id,title,description,category_slug,created_at,lat,lng')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
+
+        // Fetch user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username,bio')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          setUsername(profile.username || user.email?.split('@')[0] || '');
+          setBio(profile.bio || '');
+        }
 
         // Format member since date
         const memberDate = new Date(user.created_at);
@@ -88,18 +100,23 @@ export default function ProfilePage() {
   }, []);
 
   const handleSaveProfile = async () => {
+    if (!user?.id) {
+      alert('Not logged in');
+      return;
+    }
+    
     setSavingProfile(true);
     const { error } = await supabase
       .from('profiles')
-      .upsert({
-        user_id: user?.id,
-        display_name: displayName,
-        bio: bio,
-      }, { onConflict: 'user_id' });
+      .update({
+        bio: bio.trim() || null,
+      })
+      .eq('id', user.id);
     
     setSavingProfile(false);
     if (error) {
-      alert('Failed to save profile');
+      console.error('Profile save error:', error);
+      alert(`Failed to save profile: ${error.message}`);
     } else {
       setEditingProfile(false);
     }
@@ -228,16 +245,6 @@ export default function ProfilePage() {
             {editingProfile ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-semibold text-gray-900 dark:text-white">Display Name</label>
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your display name"
-                    className="mt-2 w-full border-2 border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-800 dark:text-white focus:border-teal-500 focus:outline-none transition-colors"
-                  />
-                </div>
-                <div>
                   <label className="text-sm font-semibold text-gray-900 dark:text-white">Bio</label>
                   <textarea
                     value={bio}
@@ -257,7 +264,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="space-y-2 text-gray-600 dark:text-gray-400">
-                <p><span className="font-semibold">Display Name:</span> {displayName || 'Not set'}</p>
+                <p><span className="font-semibold">Username:</span> {username || 'Not set'}</p>
                 <p><span className="font-semibold">Bio:</span> {bio || 'Not set'}</p>
               </div>
             )}
