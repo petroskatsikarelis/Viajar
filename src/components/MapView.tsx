@@ -19,6 +19,7 @@ export default function MapView({ posts }: PostProps) {
   const mapDivRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<unknown | null>(null);
   const markersRef = useRef<unknown[]>([]);
+  const didInitialFitRef = useRef(false);
   const [selectedPost, setSelectedPost] = useState<PostProps['posts'][0] | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
 
@@ -110,9 +111,12 @@ export default function MapView({ posts }: PostProps) {
         bounds.extend(position);
       });
 
-      // Fit map view to include all new markers
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      (mapRef.current as { fitBounds: (bounds: unknown) => void }).fitBounds(bounds);
+      // Fit map only once on initial load, so user zoom/pan is preserved afterwards
+      if (!didInitialFitRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        (mapRef.current as { fitBounds: (bounds: unknown) => void }).fitBounds(bounds);
+        didInitialFitRef.current = true;
+      }
     };
     // ---------------------------------------------
 
